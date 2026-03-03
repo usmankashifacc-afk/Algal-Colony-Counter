@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colony Counter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+  :root {
+    --bg:#0a0f0d; --surface:#111a14; --border:#1e2e22;
+    --accent:#3ddc84; --accent-dim:#1a5c38;
+    --text:#d4e8da; --text-muted:#5a7a63;
+    --danger:#ff6b6b; --warning:#ffd166; --blue:#74b9ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px}
+  h1{font-family:'Space Mono',monospace;font-size:1.4rem;color:var(--accent);margin-bottom:6px;text-align:center}
+  .sub{color:var(--text-muted);font-size:.82rem;text-align:center;margin-bottom:28px}
+  .container{width:100%;max-width:1020px;display:flex;flex-direction:column;gap:16px}
+
+  .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:var(--surface);position:relative;transition:.2s}
+  .upload-zone:hover{border-color:var(--accent);background:rgba(61,220,132,.04)}
+  .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-zone h3{font-family:'Space Mono',monospace;font-size:.85rem;color:var(--text);margin-bottom:4px}
+  .upload-zone p{font-size:.78rem;color:var(--text-muted)}
+
+  /* color tuner */
+  .tuner{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .tuner-title{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+  .sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .slider-row{display:flex;flex-direction:column;gap:4px}
+  .slider-row label{font-size:.76rem;color:var(--text-muted);display:flex;justify-content:space-between}
+  .slider-row label span{color:var(--accent);font-family:'Space Mono',monospace}
+  input[type=range]{width:100%;accent-color:var(--accent);cursor:pointer}
+  .swatch-row{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+  .swatch{width:26px;height:26px;border-radius:6px;border:2px solid var(--border);cursor:pointer;flex-shrink:0}
+  .swatch-label{font-size:.74rem;color:var(--text-muted)}
+  .preset-btn{padding:5px 11px;border-radius:6px;font-family:'Space Mono',monospace;font-size:.68rem;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);transition:.15s}
+  .preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:8px;font-family:'Space Mono',monospace;font-size:.82rem;cursor:pointer;border:none;transition:all .2s}
+  .btn-primary{background:var(--accent);color:#0a0f0d;font-weight:700;width:100%;justify-content:center}
+  .btn-primary:hover{background:#52e897;transform:translateY(-1px)}
+  .btn-primary:disabled{background:var(--accent-dim);color:var(--text-muted);cursor:not-allowed;transform:none}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:.75rem;padding:7px 14px}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .panel-header{padding:11px 16px;border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .panel-body{padding:16px}
+
+  .viewer-wrap{position:relative;display:inline-block;width:100%}
+  .viewer-wrap img,.viewer-wrap canvas{width:100%;border-radius:8px;display:block}
+  #overlayCanvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px}
+
+  .toggle-wrap{display:flex;align-items:center;gap:7px;font-size:.74rem;color:var(--text-muted);flex-shrink:0}
+  .toggle{position:relative;width:34px;height:19px;cursor:pointer}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:100px;transition:.2s}
+  .toggle-slider::before{content:'';position:absolute;height:13px;width:13px;left:3px;bottom:3px;background:var(--text-muted);border-radius:50%;transition:.2s}
+  .toggle input:checked+.toggle-slider{background:var(--accent-dim)}
+  .toggle input:checked+.toggle-slider::before{transform:translateX(15px);background:var(--accent)}
+
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media(max-width:500px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+  .stat-box{background:rgba(61,220,132,.04);border:1px solid var(--border);border-radius:9px;padding:12px;text-align:center}
+  .stat-val{font-family:'Space Mono',monospace;font-size:1.6rem;font-weight:700;line-height:1}
+  .stat-lbl{font-size:.64rem;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.07em}
+
+  .two-col{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+  @media(max-width:700px){.two-col{grid-template-columns:1fr}}
+  .right-col{display:flex;flex-direction:column;gap:14px}
+
+  .size-list{display:flex;flex-direction:column;gap:8px}
+  .size-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(61,220,132,.04);border:1px solid var(--border);border-radius:8px}
+  .size-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid}
+  .size-info{flex:1}
+  .size-name{font-size:.8rem;color:var(--text)}
+  .size-count{font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:700}
+  .size-desc{font-size:.7rem;color:var(--text-muted)}
+
+  .debug-canvas-wrap{margin-top:10px}
+  #debugCanvas{width:100%;border-radius:6px;display:block}
+
+  .note{font-size:.74rem;color:var(--text-muted);line-height:1.6;margin-top:8px}
+  .error-msg{background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.3);border-radius:8px;padding:12px 14px;font-size:.82rem;color:var(--danger);display:none}
+  .result-block{display:none}
+
+  .pixel-preview{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .px-swatch{width:32px;height:32px;border-radius:6px;border:2px solid var(--border);cursor:crosshair}
+
+  .tip{background:rgba(61,220,132,.06);border:1px solid var(--accent-dim);border-radius:8px;padding:10px 14px;font-size:.78rem;color:var(--text-muted);line-height:1.6}
+  .tip strong{color:var(--accent)}
+</style>
+</head>
+<body>
+<h1>// COLONY COUNTER</h1>
+<p class="sub">Real pixel-color detection · finds dark teal/green colonies by RGB</p>
+
+<div class="container">
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*">
+    <div style="font-size:2rem;margin-bottom:8px">🔬</div>
+    <h3>Upload petri dish image</h3>
+    <p>PNG, JPG · Click or drag</p>
+  </div>
+
+  <!-- Color & sensitivity tuner -->
+  <div class="tuner" id="tunerPanel" style="display:none">
+    <div class="tuner-title">⚙ Detection Settings — tune if colonies are missed or false positives appear</div>
+
+    <div class="tip" style="margin-bottom:12px">
+      <strong>How it works:</strong> Scans every pixel for dark teal/green blobs matching the colony color.
+      If circles miss colonies, try <strong>Click to sample</strong> on the image below, or adjust the sliders.
+    </div>
+
+    <div class="sliders">
+      <div class="slider-row">
+        <label>Min darkness (R+G+B sum ≤) <span id="darkVal">320</span></label>
+        <input type="range" id="darkSlider" min="100" max="600" value="320">
+      </div>
+      <div class="slider-row">
+        <label>Max redness (R channel ≤) <span id="redVal">130</span></label>
+        <input type="range" id="redSlider" min="30" max="220" value="130">
+      </div>
+      <div class="slider-row">
+        <label>Min greenness (G channel ≥) <span id="greenVal">50</span></label>
+        <input type="range" id="greenSlider" min="10" max="180" value="50">
+      </div>
+      <div class="slider-row">
+        <label>Blue channel ≤ <span id="blueVal">160</span></label>
+        <input type="range" id="blueSlider" min="30" max="220" value="160">
+      </div>
+      <div class="slider-row">
+        <label>Min colony size (px²) <span id="minSzVal">4</span></label>
+        <input type="range" id="minSzSlider" min="1" max="80" value="4">
+      </div>
+      <div class="slider-row">
+        <label>Merge radius (px) <span id="mergeVal">12</span></label>
+        <input type="range" id="mergeSlider" min="3" max="60" value="12">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+      <button class="preset-btn" onclick="applyPreset('teal')">🟢 Dark teal (default)</button>
+      <button class="preset-btn" onclick="applyPreset('black')">⚫ Very dark/black colonies</button>
+      <button class="preset-btn" onclick="applyPreset('green')">🌿 Bright green colonies</button>
+      <button class="preset-btn" onclick="applyPreset('sensitive')">🔍 High sensitivity</button>
+      <button class="btn btn-secondary" onclick="rerun()">↺ Re-run detection</button>
+    </div>
+
+    <div style="margin-top:10px;font-size:.74rem;color:var(--text-muted)">
+      <strong style="color:var(--text)">Click on a colony</strong> in the image to auto-sample its color:
+    </div>
+    <div class="pixel-preview" id="pixelPreview">
+      <canvas id="sampleCanvas" width="1" height="1" style="display:none"></canvas>
+      <span style="font-size:.72rem;color:var(--text-muted)" id="sampleInfo">Click the image below to sample a colony pixel</span>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="analyzeBtn" disabled>⬡ &nbsp;Detect Colonies</button>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="result-block" id="resultBlock">
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="stat-val" style="color:var(--accent)" id="totalCount">0</div><div class="stat-lbl">Total Colonies</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:#3ddc84" id="largeCount">0</div><div class="stat-lbl">Large (&gt;8px r)</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--warning)" id="medCount">0</div><div class="stat-lbl">Medium</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--blue)" id="smallCount">0</div><div class="stat-lbl">Small (&lt;4px r)</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- image with overlay -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>Colony Map — circles drawn on detected pixels</span>
+          <div class="toggle-wrap">
+            Overlay <label class="toggle"><input type="checkbox" id="overlayToggle" checked><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="viewer-wrap" id="viewerWrap">
+            <img id="previewImg" alt="Petri dish">
+            <canvas id="overlayCanvas"></canvas>
+          </div>
+          <p class="note" style="margin-top:8px">Green = large · Yellow = medium · Blue = small. Click image to sample color and fine-tune.</p>
+        </div>
+      </div>
+
+      <!-- right col -->
+      <div class="right-col">
+        <div class="panel">
+          <div class="panel-header">Size Breakdown</div>
+          <div class="panel-body">
+            <div class="size-list" id="sizeList"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">Debug — detected pixels</div>
+          <div class="panel-body">
+            <div class="debug-canvas-wrap">
+              <canvas id="debugCanvas"></canvas>
+            </div>
+            <p class="note">White = pixels matching your color filter. Adjust sliders until only colony dots are white.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- hidden full-res canvas for pixel analysis -->
+<canvas id="hiddenCanvas" style="display:none"></canvas>
+
+<script>
+let imgLoaded = false;
+let colonies = [];
+
+const fileInput    = document.getElementById('fileInput');
+const analyzeBtn   = document.getElementById('analyzeBtn');
+const previewImg   = document.getElementById('previewImg');
+const overlayCanvas= document.getElementById('overlayCanvas');
+const debugCanvas  = document.getElementById('debugCanvas');
+const hiddenCanvas = document.getElementById('hiddenCanvas');
+const overlayToggle= document.getElementById('overlayToggle');
+const resultBlock  = document.getElementById('resultBlock');
+const errorMsg     = document.getElementById('errorMsg');
+const tunerPanel   = document.getElementById('tunerPanel');
+
+// Sliders
+const darkSlider   = document.getElementById('darkSlider');
+const redSlider    = document.getElementById('redSlider');
+const greenSlider  = document.getElementById('greenSlider');
+const blueSlider   = document.getElementById('blueSlider');
+const minSzSlider  = document.getElementById('minSzSlider');
+const mergeSlider  = document.getElementById('mergeSlider');
+
+function getParams() {
+  return {
+    maxDark : +darkSlider.value,
+    maxR    : +redSlider.value,
+    minG    : +greenSlider.value,
+    maxB    : +blueSlider.value,
+    minSz   : +minSzSlider.value,
+    merge   : +mergeSlider.value,
+  };
+}
+
+[darkSlider,redSlider,greenSlider,blueSlider,minSzSlider,mergeSlider].forEach(s=>{
+  s.addEventListener('input', ()=>{
+    document.getElementById('darkVal').textContent  = darkSlider.value;
+    document.getElementById('redVal').textContent   = redSlider.value;
+    document.getElementById('greenVal').textContent = greenSlider.value;
+    document.getElementById('blueVal').textContent  = blueSlider.value;
+    document.getElementById('minSzVal').textContent = minSzSlider.value;
+    document.getElementById('mergeVal').textContent = mergeSlider.value;
+  });
+});
+
+function applyPreset(name) {
+  const presets = {
+    teal      : [320, 130,  50, 160,  4, 12],
+    black     : [200,  80,  30,  80,  4, 10],
+    green     : [400, 120,  80, 140,  4, 12],
+    sensitive : [420, 160,  40, 190,  2,  8],
+  };
+  const p = presets[name];
+  [darkSlider,redSlider,greenSlider,blueSlider,minSzSlider,mergeSlider].forEach((s,i)=>{ s.value=p[i]; s.dispatchEvent(new Event('input')); });
+  if (imgLoaded) rerun();
+}
+
+function rerun() { if (imgLoaded) runDetection(); }
+
+// ── file load ────────────────────────────────────────────────
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    previewImg.src = ev.target.result;
+    previewImg.onload = () => {
+      imgLoaded = true;
+      tunerPanel.style.display = 'block';
+      analyzeBtn.disabled = false;
+      // draw hidden canvas
+      hiddenCanvas.width  = previewImg.naturalWidth;
+      hiddenCanvas.height = previewImg.naturalHeight;
+      hiddenCanvas.getContext('2d').drawImage(previewImg, 0, 0);
+    };
+  };
+  reader.readAsDataURL(file);
+});
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e=>{e.preventDefault();uploadZone.style.borderColor='var(--accent)'});
+uploadZone.addEventListener('dragleave', ()=>{uploadZone.style.borderColor=''});
+uploadZone.addEventListener('drop', e=>{
+  e.preventDefault(); uploadZone.style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if(file){const dt=new DataTransfer();dt.items.add(file);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'));}
+});
+
+// ── click to sample color ────────────────────────────────────
+document.getElementById('viewerWrap').addEventListener('click', e => {
+  if (!imgLoaded) return;
+  const rect = previewImg.getBoundingClientRect();
+  const scaleX = previewImg.naturalWidth  / rect.width;
+  const scaleY = previewImg.naturalHeight / rect.height;
+  const px = Math.round((e.clientX - rect.left) * scaleX);
+  const py = Math.round((e.clientY - rect.top)  * scaleY);
+  const ctx = hiddenCanvas.getContext('2d');
+  const d = ctx.getImageData(px, py, 1, 1).data;
+  const r=d[0],g=d[1],b=d[2];
+
+  // Show swatch
+  const sw = document.createElement('div');
+  sw.className = 'px-swatch';
+  sw.style.background = `rgb(${r},${g},${b})`;
+  sw.title = `R:${r} G:${g} B:${b}`;
+  const prev = document.getElementById('pixelPreview');
+  if (prev.children.length > 6) prev.removeChild(prev.children[1]);
+  prev.appendChild(sw);
+  document.getElementById('sampleInfo').textContent = `Sampled: R:${r} G:${g} B:${b} (sum=${r+g+b})`;
+
+  // Auto-adjust sliders toward sampled color
+  const sum = r+g+b;
+  darkSlider.value  = Math.min(600, Math.round(sum * 1.25));
+  redSlider.value   = Math.min(220, Math.round(r * 1.4));
+  greenSlider.value = Math.max(10,  Math.round(g * 0.7));
+  blueSlider.value  = Math.min(220, Math.round(b * 1.4));
+  [darkSlider,redSlider,greenSlider,blueSlider].forEach(s=>s.dispatchEvent(new Event('input')));
+  rerun();
+});
+
+analyzeBtn.addEventListener('click', runDetection);
+overlayToggle.addEventListener('change', drawOverlay);
+window.addEventListener('resize', ()=>{ resizeOverlay(); drawOverlay(); });
+
+// ── CORE DETECTION ───────────────────────────────────────────
+function runDetection() {
+  errorMsg.style.display = 'none';
+  try {
+    const p = getParams();
+    const W = hiddenCanvas.width, H = hiddenCanvas.height;
+    const ctx = hiddenCanvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, W, H);
+    const data = imageData.data;
+
+    // 1. Build binary mask of matching pixels
+    const mask = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) {
+      const r = data[i*4], g = data[i*4+1], b = data[i*4+2];
+      if (r+g+b <= p.maxDark && r <= p.maxR && g >= p.minG && b <= p.maxB) {
+        mask[i] = 1;
+      }
+    }
+
+    // 2. Connected-component labeling (flood fill, iterative)
+    const labels = new Int32Array(W * H);
+    let labelCount = 0;
+    const compPixels = []; // array of pixel index arrays per component
+
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const idx = y * W + x;
+        if (!mask[idx] || labels[idx]) continue;
+        // BFS
+        labelCount++;
+        const label = labelCount;
+        const queue = [idx];
+        const pixels = [];
+        let qi = 0;
+        while (qi < queue.length) {
+          const ci = queue[qi++];
+          if (labels[ci]) continue;
+          labels[ci] = label;
+          pixels.push(ci);
+          const cx = ci % W, cy = Math.floor(ci / W);
+          const neighbors = [
+            cy>0   ? ci-W : -1,
+            cy<H-1 ? ci+W : -1,
+            cx>0   ? ci-1 : -1,
+            cx<W-1 ? ci+1 : -1,
+          ];
+          for (const n of neighbors) {
+            if (n >= 0 && mask[n] && !labels[n]) queue.push(n);
+          }
+        }
+        compPixels.push(pixels);
+      }
+    }
+
+    // 3. Compute centroid & radius for each component
+    let blobs = compPixels
+      .filter(px => px.length >= p.minSz)
+      .map(px => {
+        let sx=0, sy=0;
+        for (const i of px) { sx += i%W; sy += Math.floor(i/W); }
+        const cx = sx/px.length, cy = sy/px.length;
+        const area = px.length;
+        const radius = Math.sqrt(area / Math.PI);
+        return { cx, cy, radius, area };
+      });
+
+    // 4. Merge blobs that are very close (within merge radius)
+    const merged = mergeBlobs(blobs, p.merge);
+
+    // 5. Filter: must be inside the dish circle (roughly)
+    // Estimate dish center and radius from image dimensions
+    const dishCx = W * 0.5, dishCy = H * 0.5;
+    const dishR  = Math.min(W, H) * 0.44;
+    const inDish = merged.filter(b => {
+      const dx = b.cx - dishCx, dy = b.cy - dishCy;
+      return Math.sqrt(dx*dx+dy*dy) < dishR;
+    });
+
+    colonies = inDish;
+
+    // 6. Render debug mask
+    renderDebug(mask, W, H);
+
+    // 7. Show results
+    showResults(W, H);
+    resultBlock.style.display = 'block';
+    resizeOverlay();
+    drawOverlay();
+
+  } catch(err) {
+    errorMsg.textContent = 'Detection error: ' + err.message;
+    errorMsg.style.display = 'block';
+  }
+}
+
+function mergeBlobs(blobs, mergeR) {
+  // Sort by area descending so bigger blobs absorb smaller
+  blobs.sort((a,b) => b.area - a.area);
+  const active = new Array(blobs.length).fill(true);
+  for (let i = 0; i < blobs.length; i++) {
+    if (!active[i]) continue;
+    for (let j = i+1; j < blobs.length; j++) {
+      if (!active[j]) continue;
+      const dx = blobs[i].cx - blobs[j].cx;
+      const dy = blobs[i].cy - blobs[j].cy;
+      if (Math.sqrt(dx*dx+dy*dy) < mergeR) active[j] = false;
+    }
+  }
+  return blobs.filter((_,i) => active[i]);
+}
+
+function renderDebug(mask, W, H) {
+  debugCanvas.width  = W;
+  debugCanvas.height = H;
+  const ctx = debugCanvas.getContext('2d');
+  const id = ctx.createImageData(W, H);
+  for (let i = 0; i < W*H; i++) {
+    const v = mask[i] ? 255 : 0;
+    id.data[i*4]   = v;
+    id.data[i*4+1] = v;
+    id.data[i*4+2] = v;
+    id.data[i*4+3] = 255;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+
+function showResults(W, H) {
+  const large  = colonies.filter(c => c.radius >= 8);
+  const medium = colonies.filter(c => c.radius >= 4 && c.radius < 8);
+  const small  = colonies.filter(c => c.radius < 4);
+  const total  = colonies.length;
+
+  document.getElementById('totalCount').textContent = total;
+  document.getElementById('largeCount').textContent = large.length;
+  document.getElementById('medCount').textContent   = medium.length;
+  document.getElementById('smallCount').textContent = small.length;
+
+  const sl = document.getElementById('sizeList');
+  sl.innerHTML = `
+    ${sizeItem('#3ddc84','Large (r≥8px)', large.length, 'Big prominent colonies')}
+    ${sizeItem('#ffd166','Medium (4–8px)', medium.length, 'Standard sized colonies')}
+    ${sizeItem('#74b9ff','Small (<4px)', small.length, 'Pinpoint / tiny colonies')}
+  `;
+}
+
+function sizeItem(color, name, count, desc) {
+  return `<div class="size-item">
+    <div class="size-dot" style="border-color:${color};background:${color}33"></div>
+    <div class="size-info">
+      <div class="size-name">${name}</div>
+      <div class="size-desc">${desc}</div>
+    </div>
+    <div class="size-count" style="color:${color}">${count}</div>
+  </div>`;
+}
+
+function resizeOverlay() {
+  overlayCanvas.width  = previewImg.offsetWidth;
+  overlayCanvas.height = previewImg.offsetHeight;
+}
+
+function drawOverlay() {
+  const ctx = overlayCanvas.getContext('2d');
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  if (!overlayToggle.checked || colonies.length === 0) return;
+
+  const scaleX = overlayCanvas.width  / hiddenCanvas.width;
+  const scaleY = overlayCanvas.height / hiddenCanvas.height;
+
+  colonies.forEach(c => {
+    const x = c.cx * scaleX;
+    const y = c.cy * scaleY;
+    const r = Math.max(4, c.radius * Math.max(scaleX, scaleY) * 1.6);
+
+    let stroke, fill;
+    if (c.radius >= 8)      { stroke='#3ddc84'; fill='rgba(61,220,132,0.2)'; }
+    else if (c.radius >= 4) { stroke='#ffd166'; fill='rgba(255,209,102,0.2)'; }
+    else                    { stroke='#74b9ff'; fill='rgba(116,185,255,0.22)'; }
+
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.8; ctx.stroke();
+  });
+}
+</script>
+</body>
+</html>
